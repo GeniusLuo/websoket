@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+<body>
+    hello server 9000
+    <input type="text" id="msg">
+    <button id="btn">send</button>
+</body>
+<script src="https://lib.baomitu.com/socket.io/4.1.3/socket.io.js"></script>
+<script>
+    var socket = io();
+    document.getElementById('btn').addEventListener('click', function() {
+        let msg = document.getElementById('msg')
+        var val = msg.value
+        socket.emit('chatEvent', val)
+        msg.value = ''
+    })
+    // socket.on('message', function(msg){
+    //     console.log(msg);
+    // })
+    // 接受广播消息 - 广播消息不会发送给本人
+    socket.on('ServerMsg', function(msg){
+        console.log(msg);
+    })
+</script>
+</html>
