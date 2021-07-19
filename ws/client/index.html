@@ -11,16 +11,24 @@
 
 <body>
     <div id="app">
-        <div class="ctrl">
-            <input v-model="message" placeholder="输入您的消息">
-            <button id="send" @click="send">发送</button>
-            <button id="close" @click="close">关闭连接</button>
+        <div v-if="isShow">
+            <p>昵称：<input v-model="name"></p>
+            <p>房间号：<input v-model="roomId"></p>
+            <button @click="enter">进入聊天室</button>
         </div>
-        <ul>
-            <li v-for="(item, index) in lists" :key="'message' + index">
-                {{item}}
-            </li>
-        </ul>
+        <div v-else>
+            <div class="ctrl">
+                <input v-model="message" placeholder="输入您的消息">
+                <button id="send" @click="send">发送</button>
+                <button id="close" @click="close">关闭连接</button>
+            </div>
+            <ul>
+                <li v-for="(item, index) in lists" :key="'message' + index">
+                    {{item}}
+                </li>
+                <li>在线人数：{{num}}</li>
+            </ul>
+        </div>
     </div>
     <script>
         var app = new Vue({
@@ -28,7 +36,11 @@
             data: {
                 message: '',
                 lists: [],
-                ws: {}
+                ws: {},
+                isShow: true,
+                name: '',
+                num: 0,
+                roomId: ''
             },
             mounted() {
                 this.ws = new WebSocket('ws://127.0.0.1:9000')
@@ -38,15 +50,56 @@
                 this.ws.onerror = this.onError;
             },
             methods: {
+                // 进入聊天室
+                enter() {
+                    if (this.name.trim() === '') {
+                        alert('用户名不能为空')
+                        return
+                    }
+                    this.isShow = false
+                    this.ws.send(JSON.stringify({
+                        event: 'enter',
+                        message: this.name,
+                        roomId: this.roomId
+                    }))
+                },
                 onOpen() {
                     console.log('open: ' + this.ws.readyState);
                     // ws.send('hello from client')
+                    // 发起鉴权请求
+                    this.ws.send(JSON.stringify({
+                        message: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6Imltb29jIiwiaWF0IjoxNTE2MjM5MDIyfQ.KQv-KO2KRPtFP1Hl9h3qyxiko8Czz_7vWVm-5JcyP7k——',
+                        event: 'auth'
+                    }))
                 },
                 // 接收 server 端消息
                 onMessage(event) {
+                    var obj = JSON.parse(event.data)
+                    if (obj.event === 'noAuth') {
+                        // 鉴权失败
+                        // 路由跳转到 /login 重新获取token
+                        alert('鉴权失败，请重新登录')
+                        return
+                    }
+                    // 当用户未进入聊天室，则不接收消息
+                    if (this.isShow) {
+                        return
+                    }
+                    if (obj.event === 'enter') {
+                        // 当一个新用户进入聊天室
+                        this.lists.push('欢迎：' + obj.message + '加入聊天室！')
+                    } else if (obj.event === 'out') {
+                        this.lists.push(obj.name + '已经退出聊天室')
+                    } else {
+                        if (this.name !== obj.name) {
+                            // 接受正常的聊天
+                            this.lists.push(obj.name + ': ' + obj.message)
+                        }
+                    }
+                    this.num = obj.num
                     console.log('message: ' + this.ws.readyState);
                     console.log(event.data)
-                    this.lists.push(event.data)
+                    // this.lists.push(event.data)
                 },
                 // 当连接主动断开的时候
                 onClose() {
@@ -55,13 +108,17 @@
                 },
                 // 当连接失败
                 onError() {
-                    console.log('error: ' + ws.readyState)
+                    console.log('error: ' + this.ws.readyState)
                     console.log('websocket连接失败')
                 },
                 // 发送消息
                 send() {
-                    this.lists.push(this.message)
-                    this.ws.send(this.message)
+                    this.lists.push(this.name + ':' + this.message)
+                    this.ws.send(JSON.stringify({
+                        event: 'message',
+                        message: this.message,
+                        name: this.name
+                    }))
                     this.message = ''
                 },
                 // 关闭连接
