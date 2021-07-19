@@ -40,61 +40,75 @@
                 isShow: true,
                 name: '',
                 num: 0,
-                roomId: ''
+                roomId: '',
+                handle: {},
             },
             mounted() {
-                this.ws = new WebSocket('ws://127.0.0.1:9000')
-                this.ws.onopen = this.onOpen;
-                this.ws.onmessage = this.onMessage;
-                this.ws.onclose = this.onClose;
-                this.ws.onerror = this.onError;
+
             },
             methods: {
+                init() {
+                    this.ws = new WebSocket('ws://127.0.0.1:9000')
+                    this.ws.onopen = this.onOpen;
+                    this.ws.onmessage = this.onMessage;
+                    this.ws.onclose = this.onClose;
+                    this.ws.onerror = this.onError;
+                },
                 // 进入聊天室
                 enter() {
                     if (this.name.trim() === '') {
                         alert('用户名不能为空')
                         return
                     }
+                    this.init()
                     this.isShow = false
-                    this.ws.send(JSON.stringify({
-                        event: 'enter',
-                        message: this.name,
-                        roomId: this.roomId
-                    }))
                 },
                 onOpen() {
                     console.log('open: ' + this.ws.readyState);
                     // ws.send('hello from client')
                     // 发起鉴权请求
                     this.ws.send(JSON.stringify({
-                        message: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6Imltb29jIiwiaWF0IjoxNTE2MjM5MDIyfQ.KQv-KO2KRPtFP1Hl9h3qyxiko8Czz_7vWVm-5JcyP7k——',
+                        message: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6Imltb29jIiwiaWF0IjoxNTE2MjM5MDIyfQ.KQv-KO2KRPtFP1Hl9h3qyxiko8Czz_7vWVm-5JcyP7k',
                         event: 'auth'
+                    }))
+                    this.ws.send(JSON.stringify({
+                        event: 'enter',
+                        message: this.name,
+                        roomId: this.roomId
                     }))
                 },
                 // 接收 server 端消息
                 onMessage(event) {
-                    var obj = JSON.parse(event.data)
-                    if (obj.event === 'noAuth') {
-                        // 鉴权失败
-                        // 路由跳转到 /login 重新获取token
-                        alert('鉴权失败，请重新登录')
-                        return
-                    }
                     // 当用户未进入聊天室，则不接收消息
                     if (this.isShow) {
                         return
                     }
-                    if (obj.event === 'enter') {
-                        // 当一个新用户进入聊天室
-                        this.lists.push('欢迎：' + obj.message + '加入聊天室！')
-                    } else if (obj.event === 'out') {
-                        this.lists.push(obj.name + '已经退出聊天室')
-                    } else {
-                        if (this.name !== obj.name) {
-                            // 接受正常的聊天
-                            this.lists.push(obj.name + ': ' + obj.message)
-                        }
+                    var obj = JSON.parse(event.data)
+                    switch (obj.event) {
+                        case 'noAuth':
+                            // 鉴权失败
+                            // 路由跳转到 /login 重新获取token
+                            alert('鉴权失败，请重新登录')
+                            break;
+                        case 'enter':
+                            // 当一个新用户进入聊天室
+                            this.lists.push('欢迎：' + obj.message + '加入聊天室！')
+                            break
+                        case 'out':
+                            this.lists.push(obj.name + '已经退出聊天室')
+                        case 'heartBeat':
+                            this.checkServer()
+                            this.ws.send(JSON.stringify({
+                                event: 'heartBeat',
+                                message: 'pong'
+                            }))
+                            break
+                        default:
+                            if (this.name !== obj.name) {
+                                // 接受正常的聊天
+                                this.lists.push(obj.name + ': ' + obj.message)
+                            }
+                            break;
                     }
                     this.num = obj.num
                     console.log('message: ' + this.ws.readyState);
@@ -105,11 +119,15 @@
                 onClose() {
                     console.log('close: ' + this.ws.readyState);
                     console.log('已关闭websocket')
+                    this.ws.close()
                 },
                 // 当连接失败
                 onError() {
                     console.log('error: ' + this.ws.readyState)
                     console.log('websocket连接失败')
+                    setTimeout(() => {
+                        this.init()
+                    }, 1000);
                 },
                 // 发送消息
                 send() {
@@ -124,6 +142,14 @@
                 // 关闭连接
                 close() {
                     this.ws.close()
+                },
+                // 心跳检测
+                checkServer() {
+                    clearTimeout(this.handle)
+                    this.handle = setTimeout(() => {
+                        this.onClose()
+                        this.init()
+                    }, 1000 + 500);
                 }
             }
         })

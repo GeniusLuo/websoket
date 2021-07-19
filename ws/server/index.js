@@ -3,11 +3,15 @@ const WebSocket = require('ws')
 const wss = new WebSocket.Server({ port: 9000 })
 const jwt = require('jsonwebtoken')
 
+const timeInterval = 1000
 // 多聊天室的功能
 // roomId -> 对应相同的roomId进行广播
 let group = {}
 
 wss.on('connection', function (ws) {
+    // 初始的心跳连接状态
+    ws.isAlive = true
+
     console.log('one client is connected');
     // 接受客户端的消息
     // ws 是当前客户端
@@ -25,14 +29,19 @@ wss.on('connection', function (ws) {
         }
         // 主动发送消息给客户端
         // ws.send('server: ' + msg)
-        console.log(msg)
+        // console.log(msg)
 
         // 鉴权
         if (msgObj.event === 'auth') {
             jwt.verify(msgObj.message, 'secret', (err, decode) => {
                 if (err) {
                     // websocket 返回前台鉴权失败消息
+                    ws.send(JSON.stringify({
+                        event: 'noAuth',
+                        message: 'please auth again'
+                    }))
                     console.log('auth error');
+                    return
                 } else {
                     // 鉴权通过
                     console.log(decode)
@@ -40,14 +49,17 @@ wss.on('connection', function (ws) {
                     return
                 }
             })
+            return
         }
 
         // 拦截非鉴权的请求
         if (!ws.isAuth) {
-            ws.send(JSON.stringify({
-                event: 'noAuth',
-                message: 'please auth again'
-            }))
+            return
+        }
+
+        // 心跳检测
+        if (msgObj.event === 'heartBeat' && msgObj.message === 'pong') {
+            ws.isAlive = true
             return
         }
 
@@ -78,3 +90,20 @@ wss.on('connection', function (ws) {
         })
     })
 })
+
+setInterval(() => {
+    wss.clients.forEach(ws => {
+        if (!ws.isAlive) {
+            group[ws.roomId]--
+            return ws.terminate()
+        }
+        ws.isAlive = false
+        ws.send(JSON.stringify({
+            event: 'heartBeat',
+            message: 'ping',
+            num: group[ws.roomId]
+        }))
+    })
+    // 主动发送心跳检测请求
+    // 当客户端返回了消息之后，主动设置flag为在线
+}, timeInterval)
