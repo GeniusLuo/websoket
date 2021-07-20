@@ -1,9 +1,11 @@
 const WebSocket = require('ws')
 
 const wss = new WebSocket.Server({ port: 9000 })
+
+import { getValue, setValue, existKey } from './config/RedisConfig'
 // const jwt = require('jsonwebtoken')
 
-const timeInterval = 1000
+const timeInterval = 30000
 // 多聊天室的功能
 // roomId -> 对应相同的roomId进行广播
 let group = {}
@@ -17,7 +19,7 @@ wss.on('connection', function (ws) {
     // ws 是当前客户端
     ws.on('message', function (msg) {
         const msgObj = JSON.parse(msg)
-        const roomId = msgObj.roomId
+        const roomId = prefix + (msgObj.roomId ? msgObj.roomId : ws.roomId)
         // 进入聊天室
         if (msgObj.event === 'enter') {
             // 当用户进入房间之后，需判断用户的房间是否存在
@@ -109,7 +111,7 @@ wss.on('connection', function (ws) {
                         // 判断用户的房间id是否与当前一直
                         tmpObj.forEach(item => {
                             if (item.roomId === client.roomId && uid === client.uid) {
-                                client.send(JSON.stringify(item.msg))
+                                client.send(JSON.stringify(item))
                                 i.push(item)
                             }
                         })
@@ -135,15 +137,15 @@ wss.on('connection', function (ws) {
                     let msgs = JSON.parse(userData)
                     msgs.push({
                         roomId: ws.roomId,
-                        msg: msgObj.message
+                        ...msgObj
                     })
                     setValue(item, JSON.stringify(msgs))
                 } else {
                     // 说明先前这个用户一直在线，并且无离线消息数据
-                    setValue(item, JSON.stringify({
+                    setValue(item, JSON.stringify([{
                         roomId: ws.roomId,
-                        msg: msgObj.message
-                    }))
+                        ...msgObj
+                    }]))
                 }
             })
         }
@@ -166,7 +168,7 @@ wss.on('connection', function (ws) {
     })
 })
 
-setInterval(() => {
+/* setInterval(() => {
     wss.clients.forEach(ws => {
         if (!ws.isAlive && ws.roomId) {
             group[ws.roomId]--
@@ -182,4 +184,4 @@ setInterval(() => {
     })
     // 主动发送心跳检测请求
     // 当客户端返回了消息之后，主动设置flag为在线
-}, timeInterval)
+}, timeInterval) */

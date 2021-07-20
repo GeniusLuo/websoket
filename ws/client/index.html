@@ -13,6 +13,7 @@
     <div id="app">
         <div v-if="isShow">
             <p>昵称：<input v-model="name"></p>
+            <p>uid：<input v-model="uid"></p>
             <p>房间号：<input v-model="roomId"></p>
             <button @click="enter">进入聊天室</button>
         </div>
@@ -39,12 +40,10 @@
                 ws: {},
                 isShow: true,
                 name: '',
+                uid: '',
                 num: 0,
                 roomId: '',
                 handle: {},
-            },
-            mounted() {
-
             },
             methods: {
                 init() {
@@ -67,10 +66,10 @@
                     console.log('open: ' + this.ws.readyState);
                     // ws.send('hello from client')
                     // 发起鉴权请求
-                    this.ws.send(JSON.stringify({
-                        message: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6Imltb29jIiwiaWF0IjoxNTE2MjM5MDIyfQ.KQv-KO2KRPtFP1Hl9h3qyxiko8Czz_7vWVm-5JcyP7k',
-                        event: 'auth'
-                    }))
+                    // this.ws.send(JSON.stringify({
+                    //     message: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6Imltb29jIiwiaWF0IjoxNTE2MjM5MDIyfQ.KQv-KO2KRPtFP1Hl9h3qyxiko8Czz_7vWVm-5JcyP7k',
+                    //     event: 'auth'
+                    // }))
                     this.ws.send(JSON.stringify({
                         event: 'enter',
                         message: this.name,
@@ -97,7 +96,7 @@
                         case 'out':
                             this.lists.push(obj.name + '已经退出聊天室')
                         case 'heartBeat':
-                            this.checkServer()
+                            // this.checkServer()
                             this.ws.send(JSON.stringify({
                                 event: 'heartBeat',
                                 message: 'pong'
@@ -121,10 +120,11 @@
                     console.log('已关闭websocket')
                     this.ws.close()
                 },
-                // 当连接失败
+                // 当连接失败，触发onError时间
                 onError() {
                     console.log('error: ' + this.ws.readyState)
                     console.log('websocket连接失败')
+                    // 连接失败后，1s进行断线重连
                     setTimeout(() => {
                         this.init()
                     }, 1000);
@@ -149,7 +149,8 @@
                     this.handle = setTimeout(() => {
                         this.onClose()
                         this.init()
-                    }, 1000 + 500);
+                        // 设置1s的延时，调试在服务器测未及时响应时，客户端的反应
+                    }, 30000 + 1000);
                 }
             }
         })
