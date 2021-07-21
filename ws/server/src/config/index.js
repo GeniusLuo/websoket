@@ -4,6 +4,6 @@ const REDIS = {
     password: '123456'
 }
 
-export default {
-    REDIS
+module.exports = {
+    REDIS,
 }

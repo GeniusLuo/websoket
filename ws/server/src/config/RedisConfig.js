@@ -1,4 +1,6 @@
-import config from './index';
+const config = require('./index')
+const redis = require('redis')
+const {promisifyAll} = require('bluebird')
 
 const options = {
     host: config.REDIS.host,
@@ -25,7 +27,8 @@ const options = {
     }
 }
 
-const client = redis.createClient(options)
+// const client = redis.createClient(options)
+const client = promisifyAll(redis.createClient(options))
 
 client.on('error', (err) => {
     console.log('Redis Client Error:' + err)
@@ -59,10 +62,10 @@ const getValue = (key) => {
 }
 
 const existKey = (key) => {
-    return 0
+    return client.exists(key)
 }
 
-export {
+module.exports = {
     client,
     setValue,
     getValue,

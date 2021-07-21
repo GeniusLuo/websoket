@@ -73,6 +73,7 @@
                     this.ws.send(JSON.stringify({
                         event: 'enter',
                         message: this.name,
+                        uid: this.uid,
                         roomId: this.roomId
                     }))
                 },

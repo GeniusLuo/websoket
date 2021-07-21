@@ -2,10 +2,14 @@ const WebSocket = require('ws')
 
 const wss = new WebSocket.Server({ port: 9000 })
 
-import { getValue, setValue, existKey } from './config/RedisConfig'
+const redisConfig = require('./config/RedisConfig')
+
+const { getValue, setValue, existKey } = redisConfig
 // const jwt = require('jsonwebtoken')
 
-const timeInterval = 30000
+const prefix = 'room'
+
+const timeInterval = 30000;
 // 多聊天室的功能
 // roomId -> 对应相同的roomId进行广播
 let group = {}
@@ -17,7 +21,7 @@ wss.on('connection', function (ws) {
     console.log('one client is connected');
     // 接收客户端的消息
     // ws 是当前客户端
-    ws.on('message', function (msg) {
+    ws.on('message', async function (msg) {
         const msgObj = JSON.parse(msg)
         const roomId = prefix + (msgObj.roomId ? msgObj.roomId : ws.roomId)
         // 进入聊天室
